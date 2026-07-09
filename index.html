@@ -178,7 +178,7 @@ function render(d) {
       plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } },
       scales: {
         y: { ticks: { color: '#64748b', callback: v => fmt(v), maxTicksLimit: 6 }, grid: { color: '#1e293b' } },
-        x: { ticks: { color: '#64748b', maxTicksLimit: 12, callback: (v, i, ticks) => i === 0 || i === ticks.length - 1 ? '' : shortDate(ticks[i].value) } }
+        x: { ticks: { color: '#64748b', maxTicksLimit: 12, callback: function(v) { const lbl = this.getLabelForValue(v); return lbl ? shortDate(lbl) : '' } } }
       }
     }
   })
