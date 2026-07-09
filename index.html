@@ -145,9 +145,10 @@ function render(d) {
     type: 'doughnut',
     data: { labels: sortedPie.map(p => p.ticker), datasets: [{ data: sortedPie.map(p => p.value), backgroundColor: colors }] },
     options: {
-      responsive: true, cutout: '72%',
+      responsive: true, cutout: '75%',
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 9 }, boxWidth: 10, padding: 8 } },
+        legend: { display: false },
+        datalabels: { color: '#94a3b8', font: { size: 9, weight: 'bold' }, anchor: 'end', align: 'end', offset: 3, formatter: (v, ctx) => ctx.chart.data.labels[ctx.dataIndex] },
         tooltip: { callbacks: { label: ctx => { const d = sortedPie[ctx.dataIndex]; return d.label + ': $' + d.value.toFixed(2) + ' | PnL: ' + (d.pnl >= 0 ? '+' : '') + '$' + d.pnl.toFixed(2) + ' (' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%)' } } }
       }
     }
@@ -158,24 +159,40 @@ function render(d) {
     data: { labels: pnlBars.map(p => p.activo), datasets: [{ label: 'PnL USD', data: pnlBars.map(p => p.pnl), backgroundColor: pnlBars.map(p => p.pnl >= 0 ? '#22c55e' : '#ef4444') }] },
     options: {
       responsive: true, indexAxis: 'y',
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: false }, datalabels: { display: false } },
       scales: { x: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } } } }
     }
   })
 
+  const datasetLabels = ['Capital Aportado', 'Valor Cartera', 'SPY', 'QQQ']
+  const datasetColors = ['#64748b', '#3b82f6', '#22c55e', '#a855f7']
   new Chart(document.getElementById('timelineChart'), {
     type: 'line', data: {
       labels: dateLabels,
       datasets: [
-        { label: 'Capital Aportado', data: totalInvSeries, borderColor: '#64748b', borderDash: [4,4], fill: false, pointRadius: 0, tension: .1 },
-        { label: 'Valor Cartera', data: valueSeries, borderColor: '#3b82f6', fill: false, pointRadius: 0, tension: .1 },
-        { label: 'SPY', data: spySeries, borderColor: '#22c55e', fill: false, pointRadius: 0, tension: .1, spanGaps: true },
-        { label: 'QQQ', data: qqqSeries, borderColor: '#a855f7', fill: false, pointRadius: 0, tension: .1, spanGaps: true }
+        { label: 'Capital Aportado', data: totalInvSeries, borderColor: datasetColors[0], borderDash: [4,4], fill: false, pointRadius: 0, tension: .1 },
+        { label: 'Valor Cartera', data: valueSeries, borderColor: datasetColors[1], fill: false, pointRadius: 0, tension: .1 },
+        { label: 'SPY', data: spySeries, borderColor: datasetColors[2], fill: false, pointRadius: 0, tension: .1, spanGaps: true },
+        { label: 'QQQ', data: qqqSeries, borderColor: datasetColors[3], fill: false, pointRadius: 0, tension: .1, spanGaps: true }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } },
+        datalabels: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => shortDate(items[0].label),
+            label: ctx => {
+              const val = ctx.parsed.y
+              if (val === null || val === undefined) return null
+              return ctx.dataset.label + ': ' + fmt(val)
+            }
+          }
+        }
+      },
       scales: {
         y: { ticks: { color: '#64748b', callback: v => fmt(v), maxTicksLimit: 6 }, grid: { color: '#1e293b' } },
         x: { ticks: { color: '#64748b', maxTicksLimit: 12, callback: function(v) { const lbl = this.getLabelForValue(v); return lbl ? shortDate(lbl) : '' } } }
