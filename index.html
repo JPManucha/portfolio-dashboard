@@ -37,8 +37,8 @@ td{padding:8px 6px;border-bottom:1px solid #1e293b}
 
 <script>
 const API = 'https://zxajkzerhpubvtayhapx.functions.supabase.co/dashboard'
-const TOKEN = new URLSearchParams(location.search).get('token')
-if (!TOKEN) { document.getElementById('app').innerHTML = '<div class="error">Falta ?token= en la URL</div>'; throw '' }
+const TOKEN = new URLSearchParams(location.search).get('k') || new URLSearchParams(location.search).get('token')
+if (!TOKEN) { document.getElementById('app').innerHTML = '<div class="error">Falta ?k= en la URL</div>'; throw '' }
 
 ;(async () => {
   try {
