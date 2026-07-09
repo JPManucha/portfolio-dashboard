@@ -140,11 +140,11 @@ function render(d) {
     type: 'doughnut',
     data: { labels: sortedPie.map(p => p.ticker), datasets: [{ data: sortedPie.map(p => p.value), backgroundColor: colors }] },
     options: {
-      responsive: true, cutout: '75%',
+      responsive: true, cutout: '70%',
       plugins: {
         legend: { display: false },
-        datalabels: { color: '#94a3b8', font: { size: 9, weight: 'bold' }, anchor: 'end', align: 'end', offset: 3, formatter: (v, ctx) => ctx.chart.data.labels[ctx.dataIndex] },
-        tooltip: { callbacks: { label: ctx => { const d = sortedPie[ctx.dataIndex]; return d.label + ': $' + d.value.toFixed(2) + ' | PnL: ' + (d.pnl >= 0 ? '+' : '') + '$' + d.pnl.toFixed(2) + ' (' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%)' } } }
+        datalabels: { color: '#e2e8f0', font: { size: 9, weight: 'bold' }, anchor: 'end', align: 'end', offset: 4, formatter: (v, ctx) => ctx.chart.data.labels[ctx.dataIndex] },
+        tooltip: { callbacks: { label: ctx => { const d = sortedPie[ctx.dataIndex]; return d.ticker + ': $' + d.value.toFixed(2) + ' | PnL: ' + (d.pnl >= 0 ? '+' : '') + '$' + d.pnl.toFixed(2) + ' (' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%)' } } }
       }
     }
   })
