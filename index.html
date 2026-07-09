@@ -6,31 +6,43 @@
 <title>Portfolio Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-<style>
+ <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:12px}
 .container{max-width:1200px;margin:0 auto}
-h1{font-size:1.5rem;margin-bottom:8px;color:#f8fafc}
-h2{font-size:1.1rem;margin-bottom:12px;color:#94a3b8}
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.kpi-card{background:#1e293b;border-radius:12px;padding:16px}
-.kpi-label{font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
-.kpi-value{font-size:1.4rem;font-weight:700;margin-top:4px}
+h1{font-size:1.3rem;margin-bottom:6px;color:#f8fafc}
+h2{font-size:1rem;margin-bottom:10px;color:#94a3b8}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.kpi-card{background:#1e293b;border-radius:10px;padding:12px}
+.kpi-label{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.kpi-value{font-size:1.2rem;font-weight:700;margin-top:3px}
 .green{color:#22c55e}
 .red{color:#ef4444}
 .neutral{color:#e2e8f0}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-@media(max-width:768px){.row{grid-template-columns:1fr}}
-.card{background:#1e293b;border-radius:12px;padding:20px}
-.card.full{grid-column:1/-1;margin-bottom:24px}
-canvas{max-height:350px;width:100%}
-#timelineChart{max-height:400px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.card{background:#1e293b;border-radius:10px;padding:14px}
+.card.full{grid-column:1/-1;margin-bottom:16px}
+canvas{max-height:300px;width:100%}
+#timelineChart{max-height:350px}
 .card canvas{display:block}
-table{width:100%;border-collapse:collapse;font-size:.85rem}
-th{text-align:left;padding:8px 6px;border-bottom:1px solid #334155;color:#64748b;font-weight:600}
-td{padding:8px 6px;border-bottom:1px solid #1e293b}
-.loading{text-align:center;padding:60px;color:#64748b;font-size:1.2rem}
-.error{text-align:center;padding:60px;color:#ef4444;font-size:1.2rem}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:6px 4px;border-bottom:1px solid #334155;color:#64748b;font-weight:600;white-space:nowrap}
+td{padding:6px 4px;border-bottom:1px solid #1e293b;white-space:nowrap}
+.loading{text-align:center;padding:40px;color:#64748b;font-size:1.1rem}
+.error{text-align:center;padding:40px;color:#ef4444;font-size:1.1rem}
+@media(max-width:640px){
+  body{padding:8px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .kpi-card{padding:8px}
+  .kpi-value{font-size:1rem}
+  .row{grid-template-columns:1fr;gap:10px}
+  .card{padding:10px}
+  canvas{max-height:220px}
+  #timelineChart{max-height:260px}
+  h1{font-size:1.1rem}
+  h2{font-size:.9rem}
+}
 </style>
 </head>
 <body>
@@ -69,40 +81,42 @@ function render(d) {
   // Sort pie descending
   const sortedPie = pie.slice().sort((a, b) => b.value - a.value)
 
-  // Build timeline series
-  const datesSet = new Set(timeline.points.map(p => p.date))
-  timeline.spy.forEach(s => datesSet.add(s.date))
-  timeline.qqq.forEach(q => datesSet.add(q.date))
-  const allDates = Array.from(datesSet).sort()
-  const pointMap = new Map(timeline.points.map(p => [p.date, p]))
+  // Build timeline series — use SPY/QQQ dates as base, forward-fill portfolio values
   const spyIndex = new Map(timeline.spy.map(s => [s.date, s.price]))
   const qqqIndex = new Map(timeline.qqq.map(q => [q.date, q.price]))
+  const pointMap = new Map(timeline.points.map(p => [p.date, p]))
+  const allDates = Array.from(new Set([...timeline.points.map(p => p.date), ...timeline.spy.map(s => s.date), ...timeline.qqq.map(q => q.date)])).sort()
   const firstSpy = spyIndex.size ? Array.from(spyIndex.values())[0] : 1
   const firstQqq = qqqIndex.size ? Array.from(qqqIndex.values())[0] : 1
   const totalInv = timeline.points[timeline.points.length - 1]?.cumInvested || kpis.totalValor
 
   const dateLabels = [], totalInvSeries = [], valueSeries = [], spySeries = [], qqqSeries = []
+  let lastInv = 0, lastVal = 0
   for (const d of allDates) {
     const p = pointMap.get(d)
+    if (p) { lastInv = p.cumInvested; lastVal = p.invested }
     dateLabels.push(d)
-    totalInvSeries.push(p ? p.cumInvested : (totalInvSeries[totalInvSeries.length-1] || 0))
-    valueSeries.push(p ? p.invested : (valueSeries[valueSeries.length-1] || 0))
+    totalInvSeries.push(lastInv)
+    valueSeries.push(lastVal)
     const sp = spyIndex.get(d)
-    spySeries.push(sp !== undefined && sp !== null ? (sp / firstSpy) * totalInv : null)
+    spySeries.push(sp !== undefined ? (sp / firstSpy) * totalInv : null)
     const qp = qqqIndex.get(d)
-    qqqSeries.push(qp !== undefined && qp !== null ? (qp / firstQqq) * totalInv : null)
+    qqqSeries.push(qp !== undefined ? (qp / firstQqq) * totalInv : null)
   }
 
-  const green = '#22c55e', red = '#ef4444', blue = '#3b82f6', yellow = '#eab308', purple = '#a855f7'
+  const fmt = n => { if (Math.abs(n) >= 1000) return '$' + (n / 1000).toFixed(1) + 'K'; return '$' + n.toFixed(0) }
+  const shortDate = s => { const m = { '01':'Ene','02':'Feb','03':'Mar','04':'Abr','05':'May','06':'Jun','07':'Jul','08':'Ago','09':'Sep','10':'Oct','11':'Nov','12':'Dic' }; return (m[s.slice(5,7)]||s.slice(5,7)) + ' ' + parseInt(s.slice(8,10)) }
+
+  const colors = ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#06b6d4','#f97316','#8b5cf6','#14b8a6','#ec4899']
 
   document.getElementById('app').innerHTML = `
 <h1>📊 Portfolio Dashboard</h1>
 <div class="kpi-grid">
   <div class="kpi-card"><div class="kpi-label">Valor Total</div><div class="kpi-value neutral">$${kpis.totalValor.toFixed(2)}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Invertido (sin liquidez)</div><div class="kpi-value neutral">$${kpis.invertidoProductivo.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Invertido</div><div class="kpi-value neutral">$${kpis.invertidoProductivo.toFixed(2)}</div></div>
   <div class="kpi-card"><div class="kpi-label">Liquidez</div><div class="kpi-value neutral">$${kpis.liquidez.toFixed(2)}</div></div>
-  <div class="kpi-card"><div class="kpi-label">PnL No Realizado</div><div class="kpi-value ${kpis.totalPnl >= 0 ? 'green' : 'red'}">${kpis.totalPnl >= 0 ? '+' : ''}$${kpis.totalPnl.toFixed(2)}</div></div>
-  <div class="kpi-card"><div class="kpi-label">PnL Realizado</div><div class="kpi-value ${kpis.totalRealizado >= 0 ? 'green' : 'red'}">${kpis.totalRealizado >= 0 ? '+' : ''}$${kpis.totalRealizado.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">PnL No Real.</div><div class="kpi-value ${kpis.totalPnl >= 0 ? 'green' : 'red'}">${kpis.totalPnl >= 0 ? '+' : ''}$${kpis.totalPnl.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">PnL Real.</div><div class="kpi-value ${kpis.totalRealizado >= 0 ? 'green' : 'red'}">${kpis.totalRealizado >= 0 ? '+' : ''}$${kpis.totalRealizado.toFixed(2)}</div></div>
   <div class="kpi-card"><div class="kpi-label">Retorno Total</div><div class="kpi-value ${kpis.retornoTotal >= 0 ? 'green' : 'red'}">${kpis.retornoTotal >= 0 ? '+' : ''}${kpis.retornoTotal.toFixed(2)}%</div></div>
 </div>
 
@@ -111,50 +125,42 @@ function render(d) {
   <div class="card"><h2>PnL por Activo</h2><canvas id="pnlChart"></canvas></div>
 </div>
 
-<div class="card full"><h2>Evolución vs SPY / QQQ</h2><canvas id="timelineChart" style="max-height:400px"></canvas></div>
+<div class="card full"><h2>Evolución vs SPY / QQQ</h2><canvas id="timelineChart"></canvas></div>
 
 <div class="row">
-  <div class="card"><h2>Concentración</h2>${alerts.length === 0 ? '<p style="color:#64748b">Ninguna > 5%</p>' : alerts.map(a => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b"><span>${a.level === 'CRITICAL' ? '🔴' : a.level === 'WARNING' ? '🟡' : '⚪'} <strong>${a.activo}</strong> (${a.broker})</span><span>${a.pct}% | $${a.valor.toFixed(2)}</span></div>`).join('')}</div>
+  <div class="card"><h2>Concentración</h2>${alerts.length === 0 ? '<p style="color:#64748b">Ninguna > 5%</p>' : alerts.map(a => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e293b;font-size:.85rem"><span>${a.level === 'CRITICAL' ? '🔴' : a.level === 'WARNING' ? '🟡' : '⚪'} <strong>${a.activo}</strong> (${a.broker})</span><span>${a.pct}% | $${a.valor.toFixed(2)}</span></div>`).join('')}</div>
   <div class="card"><h2>Últimas Operaciones</h2>
-    <table><tr><th>Fecha</th><th>Op</th><th>Activo</th><th>Cant</th><th>Total</th></tr>
-    ${recentTxs.slice(0,8).map(t => `<tr><td style="font-size:.75rem">${t.fecha}</td><td>${t.operacion === 'Compra' ? '🟢' : '🔴'}</td><td>${t.activo}</td><td>${t.cantidad.toFixed(4)}</td><td>$${t.total.toFixed(2)}</td></tr>`).join('')}
-    </table></div>
+    <div class="table-wrap"><table><tr><th>Fecha</th><th>Op</th><th>Activo</th><th>Cant</th><th>Total</th></tr>
+    ${recentTxs.slice(0,8).map(t => `<tr><td>${t.fecha}</td><td>${t.operacion === 'Compra' ? '🟢' : '🔴'}</td><td>${t.activo}</td><td>${t.cantidad.toFixed(4)}</td><td>$${t.total.toFixed(2)}</td></tr>`).join('')}
+    </table></div></div>
 </div>
 
 <div class="card full"><h2>Holdings</h2>
-  <table><tr><th>Activo</th><th>Broker</th><th>Tipo</th><th>Cantidad</th><th>Precio</th><th>Valor</th><th>Invertido</th><th>PnL %</th></tr>
-  ${holdings.map(h => `<tr><td><strong>${h.activo}</strong>${h.ratio ? ' <span style="font-size:.7rem;color:#64748b">r:'+h.ratio+'</span>' : ''}</td><td>${h.broker}</td><td>${h.tipo}</td><td>${h.cantidad.toFixed(4)}</td><td>$${h.precio.toFixed(2)}</td><td>$${h.valor.toFixed(2)}</td><td>$${h.invertido.toFixed(2)}</td><td style="color:${h.pnlPct >= 0 ? '#22c55e' : '#ef4444'}">${h.pnlPct >= 0 ? '+' : ''}${h.pnlPct.toFixed(2)}%</td></tr>`).join('')}
-  </table></div>
+  <div class="table-wrap"><table><tr><th>Activo</th><th>Broker</th><th>Tipo</th><th>Cant</th><th>Precio</th><th>Valor</th><th>Invertido</th><th>PnL%</th></tr>
+  ${holdings.map(h => `<tr><td><strong>${h.activo}</strong>${h.ratio ? ' <span style="font-size:.65rem;color:#64748b">r:'+h.ratio+'</span>' : ''}</td><td>${h.broker}</td><td>${h.tipo}</td><td>${h.cantidad.toFixed(h.tipo === 'CEDEAR' ? 0 : 4)}</td><td>$${h.precio.toFixed(2)}</td><td>$${h.valor.toFixed(2)}</td><td>$${h.invertido.toFixed(2)}</td><td style="color:${h.pnlPct >= 0 ? '#22c55e' : '#ef4444'}">${h.pnlPct >= 0 ? '+' : ''}${h.pnlPct.toFixed(2)}%</td></tr>`).join('')}
+  </table></div></div>
 `
-
-  const fmt = n => { if (Math.abs(n) >= 1000) return '$' + (n / 1000).toFixed(1) + 'K'; return '$' + n.toFixed(0) }
 
   new Chart(document.getElementById('pieChart'), {
     type: 'doughnut',
-    data: { labels: sortedPie.map(p => p.ticker), datasets: [{ data: sortedPie.map(p => p.value), backgroundColor: ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#06b6d4','#f97316','#8b5cf6','#14b8a6','#ec4899'] }] },
+    data: { labels: sortedPie.map(p => p.ticker), datasets: [{ data: sortedPie.map(p => p.value), backgroundColor: colors }] },
     options: {
-      responsive: true, cutout: '70%',
+      responsive: true, cutout: '72%',
       plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => { const d = sortedPie[ctx.dataIndex]; return d.label + ': $' + d.value.toFixed(2) + ' | PnL: ' + (d.pnl >= 0 ? '+' : '') + '$' + d.pnl.toFixed(2) + ' (' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%)' } } },
-        datalabels: { color: '#e2e8f0', font: { size: 9, weight: 'bold' }, anchor: 'end', align: 'end', offset: 2, formatter: (v, ctx) => { const sum = ctx.dataset.data.reduce((a, b) => a + b, 0); return ctx.chart.data.labels[ctx.dataIndex] + ' ' + (v / sum * 100).toFixed(1) + '%' } }
+        legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 9 }, boxWidth: 10, padding: 8 } },
+        tooltip: { callbacks: { label: ctx => { const d = sortedPie[ctx.dataIndex]; return d.label + ': $' + d.value.toFixed(2) + ' | PnL: ' + (d.pnl >= 0 ? '+' : '') + '$' + d.pnl.toFixed(2) + ' (' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%)' } } }
       }
-    },
-    plugins: [ChartDataLabels]
+    }
   })
 
   new Chart(document.getElementById('pnlChart'), {
     type: 'bar',
-    data: { labels: pnlBars.map(p => p.activo), datasets: [{ label: 'PnL USD', data: pnlBars.map(p => p.pnl), backgroundColor: pnlBars.map(p => p.pnl >= 0 ? green : red) }] },
+    data: { labels: pnlBars.map(p => p.activo), datasets: [{ label: 'PnL USD', data: pnlBars.map(p => p.pnl), backgroundColor: pnlBars.map(p => p.pnl >= 0 ? '#22c55e' : '#ef4444') }] },
     options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        datalabels: { anchor: 'end', align: 'end', color: '#e2e8f0', font: { size: 10 }, formatter: v => (v >= 0 ? '+' : '') + '$' + v.toFixed(0) }
-      },
-      scales: { y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#94a3b8' } } }
-    },
-    plugins: [ChartDataLabels]
+      responsive: true, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } } } }
+    }
   })
 
   new Chart(document.getElementById('timelineChart'), {
@@ -162,18 +168,18 @@ function render(d) {
       labels: dateLabels,
       datasets: [
         { label: 'Capital Aportado', data: totalInvSeries, borderColor: '#64748b', borderDash: [4,4], fill: false, pointRadius: 0, tension: .1 },
-        { label: 'Valor Cartera', data: valueSeries, borderColor: blue, fill: false, pointRadius: 0, tension: .1 },
-        { label: 'SPY', data: spySeries, borderColor: green, fill: false, pointRadius: 0, tension: .1, spanGaps: true },
-        { label: 'QQQ', data: qqqSeries, borderColor: purple, fill: false, pointRadius: 0, tension: .1, spanGaps: true }
+        { label: 'Valor Cartera', data: valueSeries, borderColor: '#3b82f6', fill: false, pointRadius: 0, tension: .1 },
+        { label: 'SPY', data: spySeries, borderColor: '#22c55e', fill: false, pointRadius: 0, tension: .1, spanGaps: true },
+        { label: 'QQQ', data: qqqSeries, borderColor: '#a855f7', fill: false, pointRadius: 0, tension: .1, spanGaps: true }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } },
-        datalabels: { display: false }
-      },
-      scales: { y: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#64748b', maxTicksLimit: 10 } } }
+      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } },
+      scales: {
+        y: { ticks: { color: '#64748b', callback: v => fmt(v), maxTicksLimit: 6 }, grid: { color: '#1e293b' } },
+        x: { ticks: { color: '#64748b', maxTicksLimit: 12, callback: (v, i, ticks) => i === 0 || i === ticks.length - 1 ? '' : shortDate(ticks[i].value) } }
+      }
     }
   })
 }
