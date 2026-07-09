@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:16px}
+.container{max-width:1200px;margin:0 auto}
+h1{font-size:1.5rem;margin-bottom:8px;color:#f8fafc}
+h2{font-size:1.1rem;margin-bottom:12px;color:#94a3b8}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.kpi-card{background:#1e293b;border-radius:12px;padding:16px}
+.kpi-label{font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.kpi-value{font-size:1.4rem;font-weight:700;margin-top:4px}
+.green{color:#22c55e}
+.red{color:#ef4444}
+.neutral{color:#e2e8f0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:768px){.row{grid-template-columns:1fr}}
+.card{background:#1e293b;border-radius:12px;padding:20px}
+.card.full{grid-column:1/-1}
+canvas{max-height:350px;width:100%}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;padding:8px 6px;border-bottom:1px solid #334155;color:#64748b;font-weight:600}
+td{padding:8px 6px;border-bottom:1px solid #1e293b}
+.loading{text-align:center;padding:60px;color:#64748b;font-size:1.2rem}
+.error{text-align:center;padding:60px;color:#ef4444;font-size:1.2rem}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+<div class="loading" id="loading">Cargando datos...</div>
+</div>
+
+<script>
+const API = 'https://zxajkzerhpubvtayhapx.functions.supabase.co/dashboard'
+const TOKEN = new URLSearchParams(location.search).get('token')
+if (!TOKEN) { document.getElementById('app').innerHTML = '<div class="error">Falta ?token= en la URL</div>' }
+
+;(async () => {
+  try {
+    const res = await fetch(API + '?token=' + TOKEN)
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    const d = await res.json()
+    render(d)
+  } catch(e) {
+    document.getElementById('app').innerHTML = '<div class="error">Error al cargar datos: ' + e.message + '</div>'
+  }
+})()
+
+function render(d) {
+  const { kpis, pie, pnlBars, timeline, alerts, recentTxs, holdings } = d
+
+  // Build timeline series
+  const datesSet = new Set(timeline.points.map(p => p.date))
+  timeline.spy.forEach(s => datesSet.add(s.date))
+  timeline.qqq.forEach(q => datesSet.add(q.date))
+  const allDates = Array.from(datesSet).sort()
+  const pointMap = new Map(timeline.points.map(p => [p.date, p]))
+  const spyIndex = new Map(timeline.spy.map(s => [s.date, s.price]))
+  const qqqIndex = new Map(timeline.qqq.map(q => [q.date, q.price]))
+  const firstSpy = Array.from(spyIndex.values())[0] || 1
+  const firstQqq = Array.from(qqqIndex.values())[0] || 1
+  const firstInvested = timeline.points[0]?.invested || kpis.totalValor
+
+  const dateLabels = [], investedSeries = [], valueSeries = [], spySeries = [], qqqSeries = []
+  for (const d of allDates) {
+    const p = pointMap.get(d)
+    dateLabels.push(d)
+    investedSeries.push(p ? p.invested : (investedSeries[investedSeries.length-1] || 0))
+    valueSeries.push(p ? p.value : (valueSeries[valueSeries.length-1] || 0))
+    const sp = spyIndex.get(d)
+    spySeries.push(sp ? (sp / firstSpy) * firstInvested : null)
+    const qp = qqqIndex.get(d)
+    qqqSeries.push(qp ? (qp / firstQqq) * firstInvested : null)
+  }
+
+  const green = '#22c55e', red = '#ef4444', blue = '#3b82f6', yellow = '#eab308', purple = '#a855f7'
+
+  document.getElementById('app').innerHTML = `
+<h1>📊 Portfolio Dashboard</h1>
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="kpi-label">Valor Total</div><div class="kpi-value neutral">$${kpis.totalValor.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Invertido (sin liquidez)</div><div class="kpi-value neutral">$${kpis.invertidoProductivo.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Liquidez</div><div class="kpi-value neutral">$${kpis.liquidez.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">PnL No Realizado</div><div class="kpi-value ${kpis.totalPnl >= 0 ? 'green' : 'red'}">${kpis.totalPnl >= 0 ? '+' : ''}$${kpis.totalPnl.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">PnL Realizado</div><div class="kpi-value ${kpis.totalRealizado >= 0 ? 'green' : 'red'}">${kpis.totalRealizado >= 0 ? '+' : ''}$${kpis.totalRealizado.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Retorno Total</div><div class="kpi-value ${kpis.retornoTotal >= 0 ? 'green' : 'red'}">${kpis.retornoTotal >= 0 ? '+' : ''}${kpis.retornoTotal.toFixed(2)}%</div></div>
+</div>
+
+<div class="row">
+  <div class="card"><h2>Composición</h2><canvas id="pieChart"></canvas></div>
+  <div class="card"><h2>PnL por Activo</h2><canvas id="pnlChart"></canvas></div>
+</div>
+
+<div class="card full"><h2>Evolución vs SPY / QQQ</h2><canvas id="timelineChart" style="max-height:400px"></canvas></div>
+
+<div class="row">
+  <div class="card"><h2>Concentración</h2>${alerts.length === 0 ? '<p style="color:#64748b">Ninguna > 5%</p>' : alerts.map(a => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b"><span>${a.level === 'CRITICAL' ? '🔴' : a.level === 'WARNING' ? '🟡' : '⚪'} <strong>${a.activo}</strong> (${a.broker})</span><span>${a.pct}% | $${a.valor.toFixed(2)}</span></div>`).join('')}</div>
+  <div class="card"><h2>Últimas Operaciones</h2>
+    <table><tr><th>Fecha</th><th>Op</th><th>Activo</th><th>Cant</th><th>Total</th></tr>
+    ${recentTxs.slice(0,8).map(t => `<tr><td style="font-size:.75rem">${t.fecha}</td><td>${t.operacion === 'Compra' ? '🟢' : '🔴'}</td><td>${t.activo}</td><td>${t.cantidad.toFixed(4)}</td><td>$${t.total.toFixed(2)}</td></tr>`).join('')}
+    </table></div>
+</div>
+
+<div class="card full"><h2>Holdings</h2>
+  <table><tr><th>Activo</th><th>Broker</th><th>Tipo</th><th>Cantidad</th><th>Precio</th><th>Valor</th><th>Invertido</th><th>PnL %</th></tr>
+  ${holdings.map(h => `<tr><td><strong>${h.activo}</strong>${h.ratio ? ' <span style="font-size:.7rem;color:#64748b">r:'+h.ratio+'</span>' : ''}</td><td>${h.broker}</td><td>${h.tipo}</td><td>${h.cantidad.toFixed(4)}</td><td>$${h.precio.toFixed(2)}</td><td>$${h.valor.toFixed(2)}</td><td>$${h.invertido.toFixed(2)}</td><td style="color:${h.pnlPct >= 0 ? '#22c55e' : '#ef4444'}">${h.pnlPct >= 0 ? '+' : ''}${h.pnlPct.toFixed(2)}%</td></tr>`).join('')}
+  </table></div>
+`
+
+  new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut', data: { labels: pie.map(p => p.label), datasets: [{ data: pie.map(p => p.value), backgroundColor: ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#06b6d4','#f97316','#8b5cf6','#14b8a6','#ec4899'] }] },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } } } }
+  })
+
+  new Chart(document.getElementById('pnlChart'), {
+    type: 'bar', data: { labels: pnlBars.map(p => p.activo), datasets: [{ label: 'PnL USD', data: pnlBars.map(p => p.pnl), backgroundColor: pnlBars.map(p => p.pnl >= 0 ? green : red) }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#94a3b8' } } } }
+  })
+
+  new Chart(document.getElementById('timelineChart'), {
+    type: 'line', data: {
+      labels: dateLabels,
+      datasets: [
+        { label: 'Invertido Neto', data: investedSeries, borderColor: '#64748b', borderDash: [4,4], fill: false, pointRadius: 0, tension: .1 },
+        { label: 'Valor Cartera', data: valueSeries, borderColor: blue, fill: false, pointRadius: 0, tension: .1 },
+        { label: 'SPY (base invertida)', data: spySeries, borderColor: green, fill: false, pointRadius: 0, tension: .1 },
+        { label: 'QQQ (base invertida)', data: qqqSeries, borderColor: purple, fill: false, pointRadius: 0, tension: .1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } } },
+      scales: { y: { ticks: { color: '#64748b', callback: v => '$' + v.toFixed(0) }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#64748b', maxTicksLimit: 10 } } }
+    }
+  })
+}
+</script>
+</body>
+</html>
