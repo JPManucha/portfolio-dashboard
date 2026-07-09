@@ -107,11 +107,11 @@ function render(d) {
 <h1>📊 Portfolio Dashboard</h1>
 <div class="kpi-grid">
   <div class="kpi-card"><div class="kpi-label">Valor Total</div><div class="kpi-value neutral">$${kpis.totalValor.toFixed(2)}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Invertido</div><div class="kpi-value neutral">$${kpis.invertidoProductivo.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label" title="Capital invertido en activos productivos (sin liquidez)">Invertido</div><div class="kpi-value neutral">$${kpis.invertidoProductivo.toFixed(2)}</div></div>
   <div class="kpi-card"><div class="kpi-label">Liquidez</div><div class="kpi-value neutral">$${kpis.liquidez.toFixed(2)}</div></div>
-  <div class="kpi-card"><div class="kpi-label">PnL No Real.</div><div class="kpi-value ${kpis.totalPnl >= 0 ? 'green' : 'red'}">${kpis.totalPnl >= 0 ? '+' : ''}$${kpis.totalPnl.toFixed(2)}</div></div>
-  <div class="kpi-card"><div class="kpi-label">PnL Real.</div><div class="kpi-value ${kpis.totalRealizado >= 0 ? 'green' : 'red'}">${kpis.totalRealizado >= 0 ? '+' : ''}$${kpis.totalRealizado.toFixed(2)}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Retorno Total</div><div class="kpi-value ${kpis.retornoTotal >= 0 ? 'green' : 'red'}">${kpis.retornoTotal >= 0 ? '+' : ''}${kpis.retornoTotal.toFixed(2)}%</div></div>
+  <div class="kpi-card"><div class="kpi-label" title="Ganancia/pérdida no realizada de posiciones abiertas">PnL No Realizado</div><div class="kpi-value ${kpis.totalPnl >= 0 ? 'green' : 'red'}">${kpis.totalPnl >= 0 ? '+' : ''}$${kpis.totalPnl.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label" title="Ganancia/pérdida realizada obtenida de las ventas">PnL Realizado</div><div class="kpi-value ${kpis.totalRealizado >= 0 ? 'green' : 'red'}">${kpis.totalRealizado >= 0 ? '+' : ''}$${kpis.totalRealizado.toFixed(2)}</div></div>
+  <div class="kpi-card"><div class="kpi-label" title="(PnL No Realizado + PnL Realizado) / Invertido × 100">Retorno Total</div><div class="kpi-value ${kpis.retornoTotal >= 0 ? 'green' : 'red'}">${kpis.retornoTotal >= 0 ? '+' : ''}${kpis.retornoTotal.toFixed(2)}%</div></div>
 </div>
 
 <div class="row">
@@ -122,7 +122,7 @@ function render(d) {
 <div class="card full"><h2>Evolución vs SPY / QQQ</h2><canvas id="timelineChart"></canvas></div>
 
 <div class="row">
-  <div class="card"><h2>Concentración</h2>${alerts.length === 0 ? '<p style="color:#64748b">Ninguna > 5%</p>' : alerts.map(a => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e293b;font-size:.85rem"><span>${a.level === 'CRITICAL' ? '🔴' : a.level === 'WARNING' ? '🟡' : '⚪'} <strong>${a.activo}</strong> (${a.broker})</span><span>${a.pct}% | $${a.valor.toFixed(2)}</span></div>`).join('')}</div>
+  <div class="card"><h2 title="Activos con ≥5% del portfolio (excluye USD, USDC y posiciones vendidas)">Concentración</h2>${alerts.length === 0 ? '<p style="color:#64748b">Ninguna > 5%</p>' : alerts.map(a => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e293b;font-size:.85rem"><span>${a.level === 'CRITICAL' ? '🔴' : a.level === 'WARNING' ? '🟡' : '⚪'} <strong>${a.activo}</strong> (${a.broker})</span><span>${a.pct}% | $${a.valor.toFixed(2)}</span></div>`).join('')}</div>
   <div class="card"><h2>Últimas Operaciones</h2>
     <div class="table-wrap"><table><tr><th>Fecha</th><th>Op</th><th>Activo</th><th>Cant</th><th>Total</th></tr>
     ${recentTxs.slice(0,8).map(t => `<tr><td>${t.fecha}</td><td>${t.operacion === 'Compra' ? '🟢' : '🔴'}</td><td>${t.activo}</td><td>${t.cantidad.toFixed(4)}</td><td>$${t.total.toFixed(2)}</td></tr>`).join('')}
