@@ -79,7 +79,7 @@ function render(d) {
   const qqqIndex = new Map(timeline.qqq.map(q => [q.date, q.price]))
   const firstSpy = spyIndex.size ? Array.from(spyIndex.values())[0] : 1
   const firstQqq = qqqIndex.size ? Array.from(qqqIndex.values())[0] : 1
-  const firstInvested = timeline.points[0]?.cumInvested || kpis.totalValor
+  const totalInv = timeline.points[timeline.points.length - 1]?.cumInvested || kpis.totalValor
 
   const dateLabels = [], totalInvSeries = [], valueSeries = [], spySeries = [], qqqSeries = []
   for (const d of allDates) {
@@ -88,9 +88,9 @@ function render(d) {
     totalInvSeries.push(p ? p.cumInvested : (totalInvSeries[totalInvSeries.length-1] || 0))
     valueSeries.push(p ? p.invested : (valueSeries[valueSeries.length-1] || 0))
     const sp = spyIndex.get(d)
-    spySeries.push(sp !== undefined && sp !== null ? (sp / firstSpy) * firstInvested : null)
+    spySeries.push(sp !== undefined && sp !== null ? (sp / firstSpy) * totalInv : null)
     const qp = qqqIndex.get(d)
-    qqqSeries.push(qp !== undefined && qp !== null ? (qp / firstQqq) * firstInvested : null)
+    qqqSeries.push(qp !== undefined && qp !== null ? (qp / firstQqq) * totalInv : null)
   }
 
   const green = '#22c55e', red = '#ef4444', blue = '#3b82f6', yellow = '#eab308', purple = '#a855f7'
@@ -127,15 +127,34 @@ function render(d) {
   </table></div>
 `
 
-  Chart.register(ChartDataLabels)
+  const fmt = n => { if (Math.abs(n) >= 1000) return '$' + (n / 1000).toFixed(1) + 'K'; return '$' + n.toFixed(0) }
+
   new Chart(document.getElementById('pieChart'), {
-    type: 'doughnut', data: { labels: sortedPie.map(p => p.label), datasets: [{ data: sortedPie.map(p => p.value), backgroundColor: ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#06b6d4','#f97316','#8b5cf6','#14b8a6','#ec4899'] }] },
-    options: { responsive: true, cutout: '55%', plugins: { legend: { display: false }, datalabels: { color: '#e2e8f0', font: { size: 10, weight: 'bold' }, anchor: 'end', align: 'end', offset: 2, formatter: (v, ctx) => { const sum = ctx.dataset.data.reduce((a, b) => a + b, 0); return ctx.chart.data.labels[ctx.dataIndex] + ' ' + (v / sum * 100).toFixed(1) + '%' } } } }
+    type: 'doughnut',
+    data: { labels: sortedPie.map(p => p.ticker), datasets: [{ data: sortedPie.map(p => p.value), backgroundColor: ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#06b6d4','#f97316','#8b5cf6','#14b8a6','#ec4899'] }] },
+    options: {
+      responsive: true, cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => { const d = sortedPie[ctx.dataIndex]; return d.label + ': $' + d.value.toFixed(2) + ' | PnL: ' + (d.pnl >= 0 ? '+' : '') + '$' + d.pnl.toFixed(2) + ' (' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%)' } } },
+        datalabels: { color: '#e2e8f0', font: { size: 9, weight: 'bold' }, anchor: 'end', align: 'end', offset: 2, formatter: (v, ctx) => { const sum = ctx.dataset.data.reduce((a, b) => a + b, 0); return ctx.chart.data.labels[ctx.dataIndex] + ' ' + (v / sum * 100).toFixed(1) + '%' } }
+      }
+    },
+    plugins: [ChartDataLabels]
   })
 
   new Chart(document.getElementById('pnlChart'), {
-    type: 'bar', data: { labels: pnlBars.map(p => p.activo), datasets: [{ label: 'PnL USD', data: pnlBars.map(p => p.pnl), backgroundColor: pnlBars.map(p => p.pnl >= 0 ? green : red) }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#94a3b8' } } } }
+    type: 'bar',
+    data: { labels: pnlBars.map(p => p.activo), datasets: [{ label: 'PnL USD', data: pnlBars.map(p => p.pnl), backgroundColor: pnlBars.map(p => p.pnl >= 0 ? green : red) }] },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: { anchor: 'end', align: 'end', color: '#e2e8f0', font: { size: 10 }, formatter: v => (v >= 0 ? '+' : '') + '$' + v.toFixed(0) }
+      },
+      scales: { y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#94a3b8' } } }
+    },
+    plugins: [ChartDataLabels]
   })
 
   new Chart(document.getElementById('timelineChart'), {
@@ -143,15 +162,18 @@ function render(d) {
       labels: dateLabels,
       datasets: [
         { label: 'Capital Aportado', data: totalInvSeries, borderColor: '#64748b', borderDash: [4,4], fill: false, pointRadius: 0, tension: .1 },
-        { label: 'Valor Cartera + Ventas', data: valueSeries, borderColor: blue, fill: false, pointRadius: 0, tension: .1 },
-        { label: 'SPY (base aportada)', data: spySeries, borderColor: green, fill: false, pointRadius: 0, tension: .1, spanGaps: true },
-        { label: 'QQQ (base aportada)', data: qqqSeries, borderColor: purple, fill: false, pointRadius: 0, tension: .1, spanGaps: true }
+        { label: 'Valor Cartera', data: valueSeries, borderColor: blue, fill: false, pointRadius: 0, tension: .1 },
+        { label: 'SPY', data: spySeries, borderColor: green, fill: false, pointRadius: 0, tension: .1, spanGaps: true },
+        { label: 'QQQ', data: qqqSeries, borderColor: purple, fill: false, pointRadius: 0, tension: .1, spanGaps: true }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } } },
-      scales: { y: { ticks: { color: '#64748b', callback: v => '$' + v.toFixed(0) }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#64748b', maxTicksLimit: 10 } } }
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } },
+        datalabels: { display: false }
+      },
+      scales: { y: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#64748b', maxTicksLimit: 10 } } }
     }
   })
 }
