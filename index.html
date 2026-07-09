@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portfolio Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:16px}
@@ -21,8 +22,10 @@ h2{font-size:1.1rem;margin-bottom:12px;color:#94a3b8}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 @media(max-width:768px){.row{grid-template-columns:1fr}}
 .card{background:#1e293b;border-radius:12px;padding:20px}
-.card.full{grid-column:1/-1}
+.card.full{grid-column:1/-1;margin-bottom:24px}
 canvas{max-height:350px;width:100%}
+#timelineChart{max-height:400px}
+.card canvas{display:block}
 table{width:100%;border-collapse:collapse;font-size:.85rem}
 th{text-align:left;padding:8px 6px;border-bottom:1px solid #334155;color:#64748b;font-weight:600}
 td{padding:8px 6px;border-bottom:1px solid #1e293b}
@@ -63,6 +66,9 @@ if (!TOKEN) { document.getElementById('app').innerHTML = '<div class="error">Fal
 function render(d) {
   const { kpis, pie, pnlBars, timeline, alerts, recentTxs, holdings } = d
 
+  // Sort pie descending
+  const sortedPie = pie.slice().sort((a, b) => b.value - a.value)
+
   // Build timeline series
   const datesSet = new Set(timeline.points.map(p => p.date))
   timeline.spy.forEach(s => datesSet.add(s.date))
@@ -71,20 +77,20 @@ function render(d) {
   const pointMap = new Map(timeline.points.map(p => [p.date, p]))
   const spyIndex = new Map(timeline.spy.map(s => [s.date, s.price]))
   const qqqIndex = new Map(timeline.qqq.map(q => [q.date, q.price]))
-  const firstSpy = Array.from(spyIndex.values())[0] || 1
-  const firstQqq = Array.from(qqqIndex.values())[0] || 1
-  const firstInvested = timeline.points[0]?.invested || kpis.totalValor
+  const firstSpy = spyIndex.size ? Array.from(spyIndex.values())[0] : 1
+  const firstQqq = qqqIndex.size ? Array.from(qqqIndex.values())[0] : 1
+  const firstInvested = timeline.points[0]?.cumInvested || kpis.totalValor
 
-  const dateLabels = [], investedSeries = [], valueSeries = [], spySeries = [], qqqSeries = []
+  const dateLabels = [], totalInvSeries = [], valueSeries = [], spySeries = [], qqqSeries = []
   for (const d of allDates) {
     const p = pointMap.get(d)
     dateLabels.push(d)
-    investedSeries.push(p ? p.invested : (investedSeries[investedSeries.length-1] || 0))
-    valueSeries.push(p ? p.value : (valueSeries[valueSeries.length-1] || 0))
+    totalInvSeries.push(p ? p.cumInvested : (totalInvSeries[totalInvSeries.length-1] || 0))
+    valueSeries.push(p ? p.invested : (valueSeries[valueSeries.length-1] || 0))
     const sp = spyIndex.get(d)
-    spySeries.push(sp ? (sp / firstSpy) * firstInvested : null)
+    spySeries.push(sp !== undefined && sp !== null ? (sp / firstSpy) * firstInvested : null)
     const qp = qqqIndex.get(d)
-    qqqSeries.push(qp ? (qp / firstQqq) * firstInvested : null)
+    qqqSeries.push(qp !== undefined && qp !== null ? (qp / firstQqq) * firstInvested : null)
   }
 
   const green = '#22c55e', red = '#ef4444', blue = '#3b82f6', yellow = '#eab308', purple = '#a855f7'
@@ -121,9 +127,10 @@ function render(d) {
   </table></div>
 `
 
+  Chart.register(ChartDataLabels)
   new Chart(document.getElementById('pieChart'), {
-    type: 'doughnut', data: { labels: pie.map(p => p.label), datasets: [{ data: pie.map(p => p.value), backgroundColor: ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#06b6d4','#f97316','#8b5cf6','#14b8a6','#ec4899'] }] },
-    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } } } }
+    type: 'doughnut', data: { labels: sortedPie.map(p => p.label), datasets: [{ data: sortedPie.map(p => p.value), backgroundColor: ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#06b6d4','#f97316','#8b5cf6','#14b8a6','#ec4899'] }] },
+    options: { responsive: true, cutout: '55%', plugins: { legend: { display: false }, datalabels: { color: '#e2e8f0', font: { size: 10, weight: 'bold' }, anchor: 'end', align: 'end', offset: 2, formatter: (v, ctx) => { const sum = ctx.dataset.data.reduce((a, b) => a + b, 0); return ctx.chart.data.labels[ctx.dataIndex] + ' ' + (v / sum * 100).toFixed(1) + '%' } } } }
   })
 
   new Chart(document.getElementById('pnlChart'), {
@@ -135,10 +142,10 @@ function render(d) {
     type: 'line', data: {
       labels: dateLabels,
       datasets: [
-        { label: 'Invertido Neto', data: investedSeries, borderColor: '#64748b', borderDash: [4,4], fill: false, pointRadius: 0, tension: .1 },
-        { label: 'Valor Cartera', data: valueSeries, borderColor: blue, fill: false, pointRadius: 0, tension: .1 },
-        { label: 'SPY (base invertida)', data: spySeries, borderColor: green, fill: false, pointRadius: 0, tension: .1 },
-        { label: 'QQQ (base invertida)', data: qqqSeries, borderColor: purple, fill: false, pointRadius: 0, tension: .1 }
+        { label: 'Capital Aportado', data: totalInvSeries, borderColor: '#64748b', borderDash: [4,4], fill: false, pointRadius: 0, tension: .1 },
+        { label: 'Valor Cartera + Ventas', data: valueSeries, borderColor: blue, fill: false, pointRadius: 0, tension: .1 },
+        { label: 'SPY (base aportada)', data: spySeries, borderColor: green, fill: false, pointRadius: 0, tension: .1, spanGaps: true },
+        { label: 'QQQ (base aportada)', data: qqqSeries, borderColor: purple, fill: false, pointRadius: 0, tension: .1, spanGaps: true }
       ]
     },
     options: {
