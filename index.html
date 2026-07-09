@@ -4,9 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portfolio Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script>Chart.register(ChartDataLabels)</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
  <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:12px}
@@ -144,10 +142,28 @@ function render(d) {
       responsive: true, cutout: '70%',
       plugins: {
         legend: { display: false },
-        datalabels: { color: '#e2e8f0', font: { size: 9, weight: 'bold' }, anchor: 'end', align: 'end', offset: 4, formatter: (v, ctx) => ctx.chart.data.labels[ctx.dataIndex] },
         tooltip: { callbacks: { label: ctx => { const d = sortedPie[ctx.dataIndex]; return d.ticker + ': $' + d.value.toFixed(2) + ' | PnL: ' + (d.pnl >= 0 ? '+' : '') + '$' + d.pnl.toFixed(2) + ' (' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%)' } } }
       }
-    }
+    },
+    plugins: [{
+      id: 'pieLabels',
+      afterDraw(c) {
+        const { ctx, data, chartArea: { width, height } } = c
+        const cx = width / 2, cy = height / 2
+        const r = Math.min(width, height) / 2
+        const meta = c.getDatasetMeta(0)
+        ctx.font = 'bold 10px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        meta.data.forEach((a, i) => {
+          const angle = a.startAngle + (a.endAngle - a.startAngle) / 2
+          const lx = cx + Math.cos(angle) * r * .87
+          const ly = cy + Math.sin(angle) * r * .87
+          ctx.fillStyle = '#e2e8f0'
+          ctx.fillText(data.labels[i], lx, ly)
+        })
+      }
+    }]
   })
 
   new Chart(document.getElementById('pnlChart'), {
@@ -155,7 +171,7 @@ function render(d) {
     data: { labels: pnlBars.map(p => p.activo), datasets: [{ label: 'PnL USD', data: pnlBars.map(p => p.pnl), backgroundColor: pnlBars.map(p => p.pnl >= 0 ? '#22c55e' : '#ef4444') }] },
     options: {
       responsive: true, indexAxis: 'y',
-      plugins: { legend: { display: false }, datalabels: { display: false } },
+      plugins: { legend: { display: false } },
       scales: { x: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } } } }
     }
   })
@@ -176,7 +192,6 @@ function render(d) {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } },
-        datalabels: { display: false },
         tooltip: {
           callbacks: {
             title: items => shortDate(items[0].label),
