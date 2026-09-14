@@ -75,7 +75,7 @@ if (!TOKEN) { document.getElementById('app').innerHTML = '<div class="error">Fal
 })()
 
 function render(d) {
-  const { kpis, pie, pnlBars, timeline, alerts, allTransactions, recentTxs, holdings } = d
+  const { kpis, pie, pnlBars, brokerBars, timeline, alerts, allTransactions, recentTxs, holdings } = d
 
   // Sort pie descending
   const sortedPie = pie.slice().sort((a, b) => b.value - a.value)
@@ -118,6 +118,8 @@ function render(d) {
   <div class="card"><h2>Composición</h2><canvas id="pieChart"></canvas></div>
   <div class="card"><h2>PnL por Activo</h2><canvas id="pnlChart"></canvas></div>
 </div>
+
+<div class="card full"><h2>Valor por Broker</h2><canvas id="brokerChart"></canvas></div>
 
 <div class="card full"><h2>Evolución vs SPY / QQQ</h2><canvas id="timelineChart"></canvas></div>
 
@@ -193,6 +195,17 @@ function render(d) {
       responsive: true, indexAxis: 'y',
       plugins: { legend: { display: false } },
       scales: { x: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } } } }
+    }
+  })
+
+  const brokerColors = ['#3b82f6', '#22c55e', '#eab308', '#a855f7', '#ef4444', '#06b6d4', '#f97316', '#8b5cf6']
+  new Chart(document.getElementById('brokerChart'), {
+    type: 'bar',
+    data: { labels: brokerBars.map(b => b.broker), datasets: [{ label: 'Valor USD', data: brokerBars.map(b => b.valor), backgroundColor: brokerColors.slice(0, brokerBars.length) }] },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.y.toFixed(2) } } },
+      scales: { y: { ticks: { color: '#64748b', callback: v => fmt(v) }, grid: { color: '#1e293b' } }, x: { ticks: { color: '#94a3b8' } } }
     }
   })
 
